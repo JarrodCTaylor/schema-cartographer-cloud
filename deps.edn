@@ -1,0 +1,15 @@
+{:paths ["src" "resources"]
+
+ :deps {org.clojure/clojure       {:mvn/version "1.10.3"}
+        com.datomic/ion           {:mvn/version "1.0.59"}
+        org.clojure/tools.cli     {:mvn/version "1.0.206"}
+        com.datomic/client-cloud  {:mvn/version "0.8.105"}}
+
+ :mvn/repos {"datomic-cloud" {:url "s3://datomic-releases-1fc2183a/maven/releases"}}
+
+ :aliases {;; ====
+           ;  bin/kaocha clj-test
+           ; -------------------------------------------------------------------
+           :clj-test {:extra-paths ["test"]
+                      :extra-deps {lambdaisland/kaocha {:mvn/version "1.0.732"}
+                                   com.datomic/dev-local {:mvn/version "1.0.243"}}}}}
