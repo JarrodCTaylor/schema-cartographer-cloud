@@ -55,42 +55,52 @@
   (with-retry #(->> attr-query-results
                     (map attr)
                     (map :db/ident)
+                    (remove nil?)
                     (reduce-enumeration-references-namespaces ref-search-limit)
                     (log-analyzed-count)
                     (map (fn [ns] (keyword "cartographer.enumeration" ns))))))
 
 (defn references-namespaces-cardinality-one [attr-query-results attr ref-search-limit]
   (if attr-query-results
-    (let [references-enumeration? (every? #(= "db" %) (->> attr-query-results first attr keys (map (fn [k]
-                                                                                                     (or (namespace k) "unnamespaced")))))]
-      (if references-enumeration?
-        (references-enumeration-namespaces-cardinality-one attr-query-results attr ref-search-limit)
-        (with-retry #(->> attr-query-results
-                          (map attr)
-                          (map keys)
-                          (reduce-references-namespaces ref-search-limit)
-                          (log-analyzed-count)
-                          (map (fn [ns] (keyword "cartographer.entity" ns)))))))
+    (let [get-refed-entities (fn [q-results]
+                               (->> q-results
+                                    (map attr)
+                                    (map keys)
+                                    (reduce-references-namespaces ref-search-limit)
+                                    (log-analyzed-count)
+                                    (map (fn [ns] (keyword "cartographer.entity" ns)))))
+          query-result-key-set (-> (mapcat seq (map attr attr-query-results)) keys set)]
+      (cond
+        (= #{:db/id :db/ident} query-result-key-set) (references-enumeration-namespaces-cardinality-one attr-query-results attr ref-search-limit)
+        (and (not= #{:db/id :db/ident} query-result-key-set)
+             (contains? query-result-key-set :db/ident)) (mapcat seq [(with-retry #(get-refed-entities attr-query-results))
+                                                                      (references-enumeration-namespaces-cardinality-one attr-query-results attr ref-search-limit)])
+        :else (with-retry #(get-refed-entities attr-query-results))))
     []))
 
 (defn references-enumeration-namespaces-cardinality-many [attr-query-results ref-search-limit]
   (with-retry #(->> attr-query-results
                     (map :db/ident)
+                    (remove nil?)
                     (reduce-enumeration-references-namespaces ref-search-limit)
                     (log-analyzed-count)
                     (map (fn [ns] (keyword "cartographer.enumeration" ns))))))
 
 (defn references-namespaces-cardinality-many [attr-query-results ref-search-limit]
   (if attr-query-results
-    (let [references-enumeration? (every? #(= "db" %) (->> attr-query-results first keys (map (fn [k]
-                                                                                                (or (namespace k) "unnamespaced")))))]
-      (if references-enumeration?
-        (references-enumeration-namespaces-cardinality-many attr-query-results ref-search-limit)
-        (with-retry #(->> attr-query-results
-                          (map keys)
-                          (reduce-references-namespaces ref-search-limit)
-                          (log-analyzed-count)
-                          (map (fn [ns] (keyword "cartographer.entity" ns)))))))
+    (let [get-refed-entities (fn [q-results]
+                               (->> q-results
+                                    (map keys)
+                                    (reduce-references-namespaces ref-search-limit)
+                                    (log-analyzed-count)
+                                    (map (fn [ns] (keyword "cartographer.entity" ns)))))
+          query-result-key-set (-> (mapcat seq attr-query-results) keys set)]
+      (cond
+        (= #{:db/id :db/ident} query-result-key-set) (references-enumeration-namespaces-cardinality-many attr-query-results ref-search-limit)
+        (and (not= #{:db/id :db/ident} query-result-key-set)
+             (contains? query-result-key-set :db/ident)) (mapcat seq [(with-retry #(get-refed-entities attr-query-results))
+                                                                      (references-enumeration-namespaces-cardinality-many attr-query-results ref-search-limit)])
+        :else (with-retry #(get-refed-entities attr-query-results))))
     []))
 
 (defn format-attribute [db {:db/keys [ident valueType cardinality unique noHistory isComponent tupleAttrs] :as attr} ref-search-limit]
