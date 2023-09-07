@@ -10,6 +10,5 @@
            ;  bin/kaocha clj-test
            ; -------------------------------------------------------------------
            :clj-test {:extra-paths ["test"]
-                      :extra-deps {lambdaisland/kaocha {:mvn/version "1.86.1355"}
-                                   com.datomic/local   {:mvn/version "1.0.267"}}
-                      :main-opts ["-m" "kaocha.runner"]}}}
+                      :extra-deps {lambdaisland/kaocha {:mvn/version "1.0.732"}
+                                   com.datomic/dev-local {:mvn/version "1.0.243"}}}}}
